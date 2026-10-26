@@ -1,4 +1,6 @@
-# Finanças (spectre)
+![$PECTRE](docs/logo.jpg)
+
+# $PECTRE
 
 App Android local para planejar o mês: divisão do salário em custos, reserva e investimento, áreas com valor planejado, contas fixas e metas com previsão.
 
@@ -6,7 +8,7 @@ Os dados ficam só no celular (Room/SQLite). Em **Ajustes → Dados** é possív
 
 ## Instalar
 
-1. Abra a página **Releases** do repositório no celular e baixe o `financas-1.0.N.apk` mais recente.
+1. Abra a página **Releases** do repositório no celular e baixe o `spectre-1.0.N.apk` mais recente.
 2. Toque no arquivo. Na primeira vez, o Android pede permissão para instalar apps desta fonte.
 3. As versões novas instalam por cima e mantêm os dados, porque todas são assinadas com a mesma chave.
 
@@ -54,3 +56,5 @@ app/src/main/java/app/financas/
 As telas de computador ficaram no canvas do Claude Design para uma implementação futura.
 
 Fontes: Geist e Geist Mono (SIL Open Font License, em `licenses/`).
+
+O ícone e o logotipo (`res/drawable/ic_launcher_foreground.xml`, `logo_wordmark.xml`, `ic_notification.xml`) são vetores traçados de `docs/logo.jpg`.

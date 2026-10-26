@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
+import app.financas.R
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -129,7 +133,7 @@ fun ColumnScope.AjustesScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
                 style = T.sans(13, color = C.Muted), modifier = Modifier.padding(vertical = 8.dp),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                ActionBox("salvar cópia", Modifier.weight(1f)) { saveLauncher.launch("financas-${LocalDate.now()}.json") }
+                ActionBox("salvar cópia", Modifier.weight(1f)) { saveLauncher.launch("spectre-${LocalDate.now()}.json") }
                 ActionBox("restaurar cópia", Modifier.weight(1f)) { openLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }
             }
             Text("Restaurar substitui todos os dados atuais pelos da cópia.", style = T.sans(12, color = C.Muted), modifier = Modifier.padding(top = 4.dp))
@@ -145,10 +149,19 @@ fun ColumnScope.AjustesScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
             ) { Text("Apagar todos os dados", style = T.sans(15, color = C.Alerta)) }
         }
 
-        Text(
-            "finanças 1.0 · dados só neste celular",
-            style = T.mono(12, color = C.Dim), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
-        )
+        Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Image(
+                painterResource(R.drawable.logo_wordmark), contentDescription = "\$PECTRE",
+                colorFilter = ColorFilter.tint(C.Dim), modifier = Modifier.height(14.dp),
+            )
+            val version = remember {
+                runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
+            }
+            Text(
+                "$version · dados só neste celular",
+                style = T.mono(12, color = C.Dim), textAlign = TextAlign.Center,
+            )
+        }
     }
 
     if (confirmWipe) {

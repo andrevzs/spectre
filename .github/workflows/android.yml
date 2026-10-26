@@ -40,12 +40,12 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew testReleaseUnitTest assembleRelease --stacktrace
-          mv app/build/outputs/apk/release/app-release.apk financas-1.0.${{ github.run_number }}.apk
+          mv app/build/outputs/apk/release/app-release.apk spectre-1.0.${{ github.run_number }}.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: financas-apk
-          path: financas-*.apk
+          name: spectre-apk
+          path: spectre-*.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -56,5 +56,5 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: Finanças 1.0.${{ github.run_number }}
-          files: financas-*.apk
+          name: $PECTRE 1.0.${{ github.run_number }}
+          files: spectre-*.apk

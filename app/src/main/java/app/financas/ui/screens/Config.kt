@@ -1,6 +1,7 @@
 package app.financas.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,6 +36,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
+import app.financas.R
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import app.financas.data.SetupInput
@@ -109,6 +113,12 @@ fun ColumnScope.ConfigScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             when (step) {
                 1 -> {
+                    if (!redo) {
+                        Image(
+                            painterResource(R.drawable.logo_wordmark), contentDescription = "\$PECTRE",
+                            colorFilter = ColorFilter.tint(C.Text), modifier = Modifier.height(22.dp).padding(bottom = 4.dp),
+                        )
+                    }
                     Title("Quanto entra por mês?", "O salário líquido, já sem impostos. Dá para mudar depois.")
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(C.Surface).padding(horizontal = 20.dp, vertical = 18.dp),
