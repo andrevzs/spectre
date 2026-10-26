@@ -45,10 +45,12 @@ import app.financas.data.Keys
 import app.financas.domain.Dates
 import app.financas.domain.Money
 import app.financas.domain.areasByUsage
+import app.financas.domain.repayDebts
 import app.financas.domain.summarizeMonth
 import app.financas.ui.AppData
 import app.financas.ui.AppViewModel
 import app.financas.ui.Routes
+import app.financas.ui.components.CheckRow
 import app.financas.ui.components.Chip
 import app.financas.ui.components.IconButton
 import app.financas.ui.components.Ic
@@ -69,6 +71,8 @@ data class LancarArgs(
     val amountCents: Long?,
     val billId: Long?,
     val kind: String,
+    /** Veio de "repor" em Para fazer: já marca como reposição. */
+    val repay: Boolean = false,
 )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -89,6 +93,7 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
     var repeat by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf(false) }
     var showAll by remember { mutableStateOf(false) }
+    var repay by remember { mutableStateOf(editing?.repay ?: args.repay) }
 
     val cents = Money.fromDigits(digits)
     val isGasto = kind == Keys.GASTO
@@ -104,8 +109,18 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
     val others = remember(d, editing) { if (editing == null) d.entries else d.entries.filter { it.id != editing.id } }
     val month = YearMonth.from(date)
     val summary = remember(d, others, month, today) { summarizeMonth(month, today, d.settings, d.categories, others, d.bills) }
+    // Reposição: só aparece num aporte para uma área com resgate a repor.
+    val debt = remember(d, others, categoryId) {
+        repayDebts(d.categories, others).firstOrNull { it.category.id == categoryId }?.outstandingCents ?: 0L
+    }
+    val canRepay = isGasto && category != null && category.groupKey != Keys.CUSTOS && bill == null &&
+        (debt > 0 || editing?.repay == true)
+    val isRepayment = canRepay && repay
     val (impact, impactColor) = if (isWithdrawal) {
         withdrawalText(cents, category, d, others, today)
+    } else if (isRepayment && cents > 0) {
+        val left = debt - cents
+        (if (left > 0) "falta repor ${Money.brl(left)} · sai do livre para gastar" else "resgate reposto · sai do livre para gastar") to C.group(category!!.groupKey)
     } else {
         impactText(isGasto, cents, category?.let { c -> summary.groups[c.groupKey]?.areas?.firstOrNull { it.category.id == c.id } }, summary, source, d)
     }
@@ -115,6 +130,7 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
         description = description, method = if (isGasto) method else null,
         installments = if (method == "crédito") installments else 1,
         repeatMonthly = repeat && editing == null, fixedBillId = bill?.id,
+        repay = (isWithdrawal && repay) || isRepayment,
     )
 
     fun submit() {
@@ -222,7 +238,18 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
                                 .sortedWith(compareBy({ Keys.GROUPS.indexOf(it.groupKey) }, { it.sort }))
                                 .forEach { c -> Chip(c.name, c.id == categoryId, { categoryId = c.id }, dot = C.group(c.groupKey)) }
                         }
+                        CheckRow("Repor depois", "Aparece em Para fazer até voltar tudo.", repay, { repay = !repay })
                     }
+                }
+
+                // Aporte numa área com resgate a repor
+                if (canRepay) {
+                    CheckRow(
+                        "É reposição de resgate",
+                        if (debt > 0) "falta repor ${Money.brl(debt)} · sai do livre para gastar, não conta como o guardar do mês"
+                        else "sai do livre para gastar, não conta como o guardar do mês",
+                        repay, { repay = !repay },
+                    )
                 }
 
                 // Detalhes: um botão que resume e abre a folha
@@ -257,6 +284,7 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
                 when {
                     editing != null -> "salvar alterações"
                     isWithdrawal -> "resgatar ${Money.brl(cents)}"
+                    isRepayment -> "repor ${Money.brl(cents)}"
                     !isGasto -> "lançar receita"
                     bill != null -> "pagar ${Money.brl(cents)}"
                     group == Keys.RESERVA -> "guardar ${Money.brl(cents)}"

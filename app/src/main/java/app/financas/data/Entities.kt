@@ -1,5 +1,6 @@
 package app.financas.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -91,6 +92,11 @@ data class Entry(
     /** Pagamento de uma conta fixa neste mês. */
     val fixedBillId: Long? = null,
     val createdAt: Long = 0,
+    /**
+     * Num resgate: "repor depois" (vira pendência até voltar tudo).
+     * Num aporte de reserva/investimento: é reposição de um resgate (sai do livre para gastar).
+     */
+    @ColumnInfo(defaultValue = "0") val repay: Boolean = false,
 )
 
 @Entity(tableName = "fixed_bill")

@@ -21,6 +21,8 @@ data class EntryDraft(
     val installments: Int = 1,
     val repeatMonthly: Boolean = false,
     val fixedBillId: Long? = null,
+    /** Resgate: repor depois. Aporte: é reposição de resgate. */
+    val repay: Boolean = false,
 )
 
 data class SetupInput(
@@ -93,6 +95,7 @@ class Repository(private val db: AppDatabase) {
                     seriesId = series,
                     fixedBillId = if (i == 0) billId else null,
                     createdAt = now,
+                    repay = d.repay,
                 ),
             )
             if (i == 0) firstId = id
@@ -117,6 +120,7 @@ class Repository(private val db: AppDatabase) {
                 categoryId = if (d.kind == Keys.GASTO || d.source == Keys.RESGATE) d.categoryId else null,
                 source = if (d.kind == Keys.RECEITA) d.source else null,
                 method = if (d.kind == Keys.GASTO) d.method else null,
+                repay = d.repay,
             ),
         )
     }
@@ -327,6 +331,7 @@ private object Backup {
         put("kind", e.kind); put("categoryId", e.categoryId ?: JSONObject.NULL); put("source", e.source ?: JSONObject.NULL)
         put("method", e.method ?: JSONObject.NULL); put("installmentNo", e.installmentNo); put("installmentCount", e.installmentCount)
         put("seriesId", e.seriesId ?: JSONObject.NULL); put("fixedBillId", e.fixedBillId ?: JSONObject.NULL); put("createdAt", e.createdAt)
+        put("repay", e.repay)
     }
 
     fun entry(o: JSONObject) = Entry(
@@ -335,6 +340,7 @@ private object Backup {
         source = o.optStringOrNull("source"), method = o.optStringOrNull("method"),
         installmentNo = o.optInt("installmentNo", 1), installmentCount = o.optInt("installmentCount", 1),
         seriesId = o.optStringOrNull("seriesId"), fixedBillId = o.optLongOrNull("fixedBillId"), createdAt = o.optLong("createdAt"),
+        repay = o.optBoolean("repay", false),
     )
 
     fun bill(b: FixedBill) = JSONObject().apply {

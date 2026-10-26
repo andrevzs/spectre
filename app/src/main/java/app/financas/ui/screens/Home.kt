@@ -36,6 +36,7 @@ import app.financas.domain.currentGoal
 import app.financas.domain.goalStatuses
 import app.financas.domain.litSegments
 import app.financas.domain.pendingClose
+import app.financas.domain.repayDebts
 import app.financas.domain.summarizeMonth
 import app.financas.domain.todos
 import app.financas.ui.AppData
@@ -106,7 +107,7 @@ fun ColumnScope.HomeScreen(vm: AppViewModel, d: AppData, nav: NavHostController)
         if (firstMonth && isCurrent) {
             FirstSteps(d, summary, vm, nav)
         } else if (isCurrent) {
-            Todos(todos(summary, d.settings, today), vm, nav, today.dayOfMonth)
+            Todos(todos(summary, d.settings, today, repayDebts(d.categories, d.entries)), vm, nav, today.dayOfMonth)
         }
     }
 }
@@ -210,6 +211,12 @@ private fun Todos(list: List<Todo>, vm: AppViewModel, nav: NavHostController, da
                         if (reserva) "guardar" else "investir",
                         C.group(t.groupKey),
                     ) { nav.navigate(Routes.lancar(cat = t.categoryId, amount = t.remainingCents)) }
+                }
+                is Todo.Repay -> {
+                    val c = t.debt.category
+                    TodoRow("Repor ${c.name}", "falta ${Money.brl(t.debt.outstandingCents)}", "repor", C.group(c.groupKey)) {
+                        nav.navigate(Routes.lancar(cat = c.id, amount = t.debt.outstandingCents, repay = true))
+                    }
                 }
             }
         }

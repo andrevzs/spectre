@@ -121,6 +121,8 @@ data class MonthSummary(
     val incomeCents: Long,
     /** Resgates do mês, somados ao orçamento de custos. */
     val withdrawalCents: Long,
+    /** Reposições de resgate no mês: saem do livre para gastar e não contam como aporte do mês. */
+    val repaidCents: Long = 0,
     val groups: Map<String, GroupStatus>,
     val bills: List<BillStatus>,
     /** Contas fixas de custos ainda não pagas no mês. */
@@ -151,6 +153,23 @@ fun goesToInvest(entry: Entry, settings: Settings): Boolean =
 
 fun isWithdrawal(entry: Entry): Boolean = entry.kind == Keys.RECEITA && entry.source == Keys.RESGATE
 
+/** Aporte que repõe um resgate marcado como "repor depois". */
+fun isRepayment(entry: Entry): Boolean = entry.kind == Keys.GASTO && entry.repay
+
+data class RepayDebt(val category: Category, val outstandingCents: Long)
+
+/** Quanto falta repor em cada área: resgates marcados menos reposições já feitas. */
+fun repayDebts(categories: List<Category>, entries: List<Entry>): List<RepayDebt> {
+    val owed = entries.filter { isWithdrawal(it) && it.repay }.groupBy { it.categoryId }
+        .mapValues { (_, l) -> l.sumOf { it.amountCents } }
+    val paid = entries.filter { isRepayment(it) }.groupBy { it.categoryId }
+        .mapValues { (_, l) -> l.sumOf { it.amountCents } }
+    return categories.mapNotNull { c ->
+        val left = (owed[c.id] ?: 0L) - (paid[c.id] ?: 0L)
+        if (left > 0) RepayDebt(c, left) else null
+    }
+}
+
 fun summarizeMonth(
     month: YearMonth,
     today: LocalDate,
@@ -162,7 +181,8 @@ fun summarizeMonth(
     val entries = entriesIn(allEntries, month)
     val withdrawals = entries.filter { isWithdrawal(it) }
     val receitas = entries.filter { it.kind == Keys.RECEITA && !isWithdrawal(it) }
-    val gastos = entries.filter { it.kind == Keys.GASTO }
+    val repayments = entries.filter { isRepayment(it) }
+    val gastos = entries.filter { it.kind == Keys.GASTO && !it.repay }
 
     val salaryConfirmed = receitas.any { it.source == Keys.SALARIO }
     val direct = receitas.filter { goesToInvest(it, settings) }.sumOf { it.amountCents }
@@ -227,7 +247,8 @@ fun summarizeMonth(
         groups = groups,
         bills = billStatus,
         pendingFixedCents = pending,
-        freeCents = custos.budgetCents - custos.spentCents - pending,
+        repaidCents = repayments.sumOf { it.amountCents },
+        freeCents = custos.budgetCents - custos.spentCents - pending - repayments.sumOf { it.amountCents },
         daysLeft = daysLeft,
         monthFraction = fraction,
     )
@@ -252,9 +273,11 @@ sealed class Todo {
     data class PayBill(val status: BillStatus) : Todo()
     /** Guardar ou investir o que falta do mês, numa área do grupo. */
     data class Contribute(val groupKey: String, val remainingCents: Long, val categoryId: Long) : Todo()
+    /** Repor um resgate marcado como "repor depois". */
+    data class Repay(val debt: RepayDebt) : Todo()
 }
 
-fun todos(summary: MonthSummary, settings: Settings, today: LocalDate): List<Todo> {
+fun todos(summary: MonthSummary, settings: Settings, today: LocalDate, debts: List<RepayDebt> = emptyList()): List<Todo> {
     if (summary.month != YearMonth.from(today)) return emptyList()
     val out = mutableListOf<Todo>()
     if (!summary.salaryConfirmed && settings.salaryCents > 0) {
@@ -267,6 +290,7 @@ fun todos(summary: MonthSummary, settings: Settings, today: LocalDate): List<Tod
             .maxByOrNull { it.remainingCents } ?: continue
         if (g.remainingCents > 0) out += Todo.Contribute(key, g.remainingCents, area.category.id)
     }
+    debts.forEach { out += Todo.Repay(it) }
     return out
 }
 
@@ -338,7 +362,8 @@ fun monthlyContribution(
             val ids = categories.filter { it.groupKey == goal.groupKey }.map { it.id }.toSet()
             val from = months.first().atDay(1).toEpochDay()
             val to = months.last().atEndOfMonth().toEpochDay()
-            val total = entries.filter { it.kind == Keys.GASTO && it.categoryId in ids && it.epochDay in from..to }
+            // Só aportes regulares: reposições de resgate não indicam o ritmo de guardar.
+            val total = entries.filter { it.kind == Keys.GASTO && !it.repay && it.categoryId in ids && it.epochDay in from..to }
                 .sumOf { it.amountCents }
             return total / months.size to MonthlyBasis.MEDIA
         }

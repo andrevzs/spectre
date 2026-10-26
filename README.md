@@ -35,12 +35,12 @@ A chave vem do secret `KEYSTORE_BASE64` (o `.jks` em base64) e a senha, do secre
 - **Livre para gastar** = orçamento de custos − gasto em custos − contas fixas de custos ainda não pagas.
 - Enquanto o salário do mês não é confirmado, a divisão usa o salário previsto.
 - Metas são marcos do patrimônio do grupo: "já tenho" + tudo que foi guardado ou investido até hoje, menos os resgates.
-- **Resgate** (receita → Resgate → "saiu de"): tira o valor da reserva ou do investimento e soma ao orçamento de custos do mês. Não conta como entrada nova nem entra na divisão do salário.
+- **Resgate** (receita → Resgate → "saiu de"): tira o valor da reserva ou do investimento e soma ao orçamento de custos do mês. Não conta como entrada nova nem entra na divisão do salário. Com **"Repor depois"** marcado, o valor vira pendência em Para fazer; cada reposição sai do livre para gastar e não conta como o guardar do mês, até voltar tudo.
 - A previsão usa juros compostos mensais. O aporte mensal é o definido na meta; senão, a média dos meses fechados (até 3); senão, a parte do salário.
 
 ## Banco de dados
 
-O Room exporta o schema de cada versão em `app/schemas` (o workflow publica como artefato `room-schemas`). Ao mudar uma entidade, aumente a versão do banco e escreva uma `Migration`; o app não apaga dados em migração.
+Versões: 1 (inicial) e 2 (campo `repay` nos lançamentos, migração `MIGRATION_1_2`). O Room exporta o schema de cada versão em `app/schemas` (o workflow publica como artefato `room-schemas`). Ao mudar uma entidade, aumente a versão do banco e escreva uma `Migration`; o app não apaga dados em migração.
 
 O arquivo de cópia tem um campo `version`. A restauração recusa cópias de versões mais novas do app e só substitui os dados depois de ler o arquivo inteiro sem erro.
 

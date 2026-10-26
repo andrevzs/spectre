@@ -256,6 +256,26 @@ fun SwitchRow(title: String, sub: String?, on: Boolean, onToggle: () -> Unit, mo
     }
 }
 
+/** Linha com caixa de seleção: título, explicação e a caixa à esquerda. */
+@Composable
+fun CheckRow(title: String, sub: String?, checked: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onToggle)
+            .semantics { role = Role.Checkbox; selected = checked },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier.size(24.dp).clip(RoundedCornerShape(6.dp)).background(if (checked) C.Text else C.Track),
+            contentAlignment = Alignment.Center,
+        ) { if (checked) Glyph(Ic.Check, C.Bg, 16.dp, 2.4f) }
+        Column(Modifier.weight(1f).padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = T.sans(15))
+            if (sub != null) Text(sub, style = T.sans(12, color = C.Muted))
+        }
+    }
+}
+
 @Composable
 fun Stepper(value: String, onLess: () -> Unit, onMore: () -> Unit, lessLabel: String = "Diminuir", moreLabel: String = "Aumentar", width: Dp = 52.dp) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {

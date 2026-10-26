@@ -179,4 +179,33 @@ class BudgetTest {
         assertTrue(s.baseIsPlanned)
         assertEquals(500000L, s.baseCents)
     }
+
+    @Test fun repayWithdrawal() {
+        val entries = listOf(
+            Entry(1, day(10, 9), "Reserva", 300000, Keys.GASTO, categoryId = 4),
+            Entry(2, day(5), "Conserto", 80000, Keys.RECEITA, categoryId = 4, source = Keys.RESGATE, repay = true),
+            Entry(3, day(6), "Sem repor", 10000, Keys.RECEITA, categoryId = 4, source = Keys.RESGATE),
+            Entry(4, day(20), "Reposição", 30000, Keys.GASTO, categoryId = 4, repay = true),
+            Entry(5, day(21), "Guardar do mês", 50000, Keys.GASTO, categoryId = 4),
+        )
+        // só o resgate marcado vira pendência: 800 - 300 = 500
+        val debts = repayDebts(cats, entries)
+        assertEquals(1, debts.size)
+        assertEquals(50000L, debts.single().outstandingCents)
+
+        val s = summarizeMonth(oct, today, settings, cats, entries, emptyList())
+        // a reposição sai do livre para gastar…
+        assertEquals(30000L, s.repaidCents)
+        assertEquals(375000L + 90000 - 30000, s.freeCents)
+        // …e não conta como o guardar do mês (500 de 500 cumpridos só com o aporte regular)
+        assertEquals(50000L, s.reserva.spentCents)
+        assertTrue(todos(s, settings, today, debts).none { it is Todo.Contribute && it.groupKey == Keys.RESERVA })
+        assertTrue(todos(s, settings, today, debts).any { it is Todo.Repay })
+        // patrimônio: 3000 - 800 - 100 + 300 + 500
+        assertEquals(290000L, groupBalance(Keys.RESERVA, settings, cats, entries, today.toEpochDay()))
+
+        // repor tudo zera a pendência
+        val done = entries + Entry(6, day(22), "Reposição", 50000, Keys.GASTO, categoryId = 4, repay = true)
+        assertTrue(repayDebts(cats, done).isEmpty())
+    }
 }

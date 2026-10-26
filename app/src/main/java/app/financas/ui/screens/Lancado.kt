@@ -31,6 +31,7 @@ import app.financas.domain.Money
 import app.financas.domain.currentGoal
 import app.financas.domain.goalStatuses
 import app.financas.domain.litSegments
+import app.financas.domain.repayDebts
 import app.financas.domain.summarizeMonth
 import app.financas.ui.AppData
 import app.financas.ui.AppViewModel
@@ -71,6 +72,7 @@ fun ColumnScope.LancadoScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
 
     val title = when {
         withdrawal -> "Resgate lançado"
+        entry.repay -> "Reposição lançada"
         entry.kind == Keys.RECEITA -> "Receita lançada"
         group == Keys.RESERVA -> "Guardado"
         group == Keys.INVEST -> "Investido"
@@ -176,7 +178,12 @@ fun ColumnScope.LancadoScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
                             FreeChange(before.freeCents, after.freeCents, after.perDayCents)
                         }
                     }
-                    Keys.RESERVA, Keys.INVEST -> {
+                    Keys.RESERVA, Keys.INVEST -> if (entry.repay) {
+                        val key: String = group!!
+                        FreeChange(before.freeCents, after.freeCents, after.perDayCents)
+                        RepayLeft(d, entry.categoryId)
+                        GoalChange(d, without, key, today)
+                    } else {
                         val key: String = group!!
                         val g = after.group(key)
                         Row(Modifier.fillMaxWidth()) {
@@ -188,7 +195,10 @@ fun ColumnScope.LancadoScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
                     }
                     else -> {
                         FreeChange(before.freeCents, after.freeCents, after.perDayCents)
-                        if (withdrawal && category != null) GoalChange(d, without, category.groupKey, today)
+                        if (withdrawal && category != null) {
+                            if (entry.repay) RepayLeft(d, entry.categoryId)
+                            GoalChange(d, without, category.groupKey, today)
+                        }
                         if (after.invest.directCents > 0 && entry.source == Keys.VARIAVEL) {
                             Row(Modifier.fillMaxWidth()) {
                                 Text("Para investir no mês", style = T.sans(15), modifier = Modifier.weight(1f))
@@ -205,6 +215,16 @@ fun ColumnScope.LancadoScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
             SecondaryButton("lançar outro", { nav.navigate(Routes.lancar(kind = entry.kind)) { popUpTo(Routes.HOME) } }, Modifier.weight(1f))
             PrimaryButton("voltar ao início", home, Modifier.weight(1f))
         }
+    }
+}
+
+/** Quanto ainda falta repor na área do resgate. */
+@Composable
+private fun RepayLeft(d: AppData, categoryId: Long?) {
+    val left = repayDebts(d.categories, d.entries).firstOrNull { it.category.id == categoryId }?.outstandingCents ?: 0L
+    Row(Modifier.fillMaxWidth()) {
+        Text(if (left > 0) "Falta repor" else "Resgate reposto", style = T.sans(15), modifier = Modifier.weight(1f))
+        if (left > 0) Text(Money.brl(left), style = T.mono(15, color = C.Reserva))
     }
 }
 

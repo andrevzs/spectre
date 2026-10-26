@@ -56,8 +56,8 @@ object Routes {
     const val AJUSTES = "ajustes"
     const val CONFIG = "config"
 
-    fun lancar(edit: Long = -1, cat: Long = -1, amount: Long = -1, bill: Long = -1, kind: String = "gasto") =
-        "lancar?edit=$edit&cat=$cat&amount=$amount&bill=$bill&kind=$kind"
+    fun lancar(edit: Long = -1, cat: Long = -1, amount: Long = -1, bill: Long = -1, kind: String = "gasto", repay: Boolean = false) =
+        "lancar?edit=$edit&cat=$cat&amount=$amount&bill=$bill&kind=$kind&repay=$repay"
 
     fun lancado(id: Long) = "lancado/$id"
     fun meta(id: Long = -1) = "meta?id=$id"
@@ -96,13 +96,14 @@ fun App(vm: AppViewModel = viewModel()) {
             composable(Routes.FIXOS) { TabFrame(Tab.ORCAMENTO, nav) { WithData(vm) { d -> FixosScreen(vm, d, nav) } } }
             composable(Routes.AJUSTES) { TabFrame(Tab.ORCAMENTO, nav) { WithData(vm) { d -> AjustesScreen(vm, d, nav) } } }
             composable(
-                "lancar?edit={edit}&cat={cat}&amount={amount}&bill={bill}&kind={kind}",
+                "lancar?edit={edit}&cat={cat}&amount={amount}&bill={bill}&kind={kind}&repay={repay}",
                 arguments = listOf(
                     navArgument("edit") { type = NavType.LongType; defaultValue = -1L },
                     navArgument("cat") { type = NavType.LongType; defaultValue = -1L },
                     navArgument("amount") { type = NavType.LongType; defaultValue = -1L },
                     navArgument("bill") { type = NavType.LongType; defaultValue = -1L },
                     navArgument("kind") { type = NavType.StringType; defaultValue = "gasto" },
+                    navArgument("repay") { type = NavType.BoolType; defaultValue = false },
                 ),
             ) { e ->
                 val a = e.arguments!!
@@ -115,6 +116,7 @@ fun App(vm: AppViewModel = viewModel()) {
                             amountCents = a.getLong("amount").takeIf { it > 0 },
                             billId = a.getLong("bill").takeIf { it > 0 },
                             kind = a.getString("kind") ?: "gasto",
+                            repay = a.getBoolean("repay"),
                         ),
                     ) }
                 }

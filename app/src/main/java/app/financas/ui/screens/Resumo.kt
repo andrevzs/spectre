@@ -105,6 +105,7 @@ fun ColumnScope.ResumoScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
             Card(gap = 14.dp) {
                 SumRow("Entradas", C.Muted, Money.brl(s.incomeCents))
                 if (s.withdrawalCents > 0) SumRow("Resgates para custos", C.Muted, Money.brl(s.withdrawalCents))
+                if (s.repaidCents > 0) SumRow("Reposições de resgate", C.Muted, Money.brl(s.repaidCents))
                 SumRow("Custos", C.Text, "${Money.brl(s.custos.spentCents)} / ${Money.brl(s.custos.budgetCents)}", if (s.custos.spentCents > s.custos.budgetCents) C.Alerta else C.Text)
                 SumRow("Guardado", C.Reserva, "${Money.brl(s.reserva.netContributionCents)} / ${Money.brl(s.reserva.budgetCents)}")
                 SumRow(

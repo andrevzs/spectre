@@ -185,6 +185,7 @@ private fun EntryRow(e: Entry, d: AppData, onClick: () -> Unit) {
     val text = e.description.ifBlank {
         when {
             resgate -> "Resgate"
+            e.repay -> "Reposição"
             receita && e.source == Keys.SALARIO -> "Salário"
             receita && e.source == Keys.VARIAVEL -> s.variableName
             receita -> "Receita"
@@ -192,7 +193,8 @@ private fun EntryRow(e: Entry, d: AppData, onClick: () -> Unit) {
         }
     }
     val where = when {
-        resgate -> "${cat?.name ?: "Resgate"} · resgate para custos"
+        resgate -> "${cat?.name ?: "Resgate"} · resgate para custos" + if (e.repay) " · a repor" else ""
+        e.repay -> "${cat?.name ?: "Sem área"} · reposição de resgate"
         receita && goesToInvest(e, s) -> "${s.variableName} · para investimento"
         receita && e.source == Keys.SALARIO -> "Dividido ${s.pctCustos} · ${s.pctReserva} · ${s.pctInvest}"
         receita -> (if (e.source == Keys.VARIAVEL) s.variableName else "Outra") + " · dividido pelo orçamento"
