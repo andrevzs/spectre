@@ -19,6 +19,8 @@ object Keys {
     const val SALARIO = "salario"
     const val VARIAVEL = "variavel"
     const val OUTRA = "outra"
+    /** Saque da reserva ou de um investimento: a área de origem fica em categoryId. */
+    const val RESGATE = "resgate"
 
     val METHODS = listOf("pix", "débito", "crédito", "dinheiro")
 }
@@ -73,10 +75,13 @@ data class Entry(
     val epochDay: Long,
     val description: String = "",
     val amountCents: Long,
-    /** gasto | receita. Guardar e investir são gastos numa área desses grupos. */
+    /**
+     * gasto | receita. Guardar e investir são gastos numa área desses grupos;
+     * resgatar é uma receita com origem "resgate" e a área de onde o dinheiro saiu.
+     */
     val kind: String,
     val categoryId: Long? = null,
-    /** Só receitas: salario | variavel | outra. */
+    /** Só receitas: salario | variavel | outra | resgate. */
     val source: String? = null,
     val method: String? = null,
     val installmentNo: Int = 1,

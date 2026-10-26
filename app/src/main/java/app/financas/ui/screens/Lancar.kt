@@ -93,7 +93,8 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
     val cents = Money.fromDigits(digits)
     val isGasto = kind == Keys.GASTO
     val category = d.category(categoryId)
-    val ready = cents > 0 && (if (isGasto) category != null else true)
+    val isWithdrawal = !isGasto && source == Keys.RESGATE
+    val ready = cents > 0 && (if (isGasto || isWithdrawal) category != null else true)
     // Pagamento de conta fixa: a área é a da conta (muda-se em Fixos), para o orçamento não divergir.
     val areaLocked = (editing?.fixedBillId != null || bill != null) && category != null
 
@@ -103,7 +104,11 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
     val others = remember(d, editing) { if (editing == null) d.entries else d.entries.filter { it.id != editing.id } }
     val month = YearMonth.from(date)
     val summary = remember(d, others, month, today) { summarizeMonth(month, today, d.settings, d.categories, others, d.bills) }
-    val (impact, impactColor) = impactText(isGasto, cents, category?.let { c -> summary.groups[c.groupKey]?.areas?.firstOrNull { it.category.id == c.id } }, summary, source, d)
+    val (impact, impactColor) = if (isWithdrawal) {
+        withdrawalText(cents, category, d, others, today)
+    } else {
+        impactText(isGasto, cents, category?.let { c -> summary.groups[c.groupKey]?.areas?.firstOrNull { it.category.id == c.id } }, summary, source, d)
+    }
 
     fun draft() = EntryDraft(
         kind = kind, amountCents = cents, categoryId = categoryId, source = source, date = date,
@@ -199,6 +204,23 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
                                 )
                             }
                             Chip("Outra", source == Keys.OUTRA, { source = Keys.OUTRA }, dot = C.Text)
+                            Chip("Resgate", source == Keys.RESGATE, {
+                                source = Keys.RESGATE
+                                if (category?.groupKey !in setOf(Keys.RESERVA, Keys.INVEST)) categoryId = null
+                            }, dot = C.Reserva)
+                        }
+                    }
+                }
+
+                // Resgate: de onde o dinheiro saiu
+                if (isWithdrawal) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel("Saiu de", Modifier.padding(start = 4.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            d.categories
+                                .filter { !it.archived && it.groupKey != Keys.CUSTOS }
+                                .sortedWith(compareBy({ Keys.GROUPS.indexOf(it.groupKey) }, { it.sort }))
+                                .forEach { c -> Chip(c.name, c.id == categoryId, { categoryId = c.id }, dot = C.group(c.groupKey)) }
                         }
                     }
                 }
@@ -234,6 +256,7 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
             PrimaryButton(
                 when {
                     editing != null -> "salvar alterações"
+                    isWithdrawal -> "resgatar ${Money.brl(cents)}"
                     !isGasto -> "lançar receita"
                     bill != null -> "pagar ${Money.brl(cents)}"
                     group == Keys.RESERVA -> "guardar ${Money.brl(cents)}"
@@ -268,6 +291,26 @@ private fun Segment(text: String, on: Boolean, onClick: () -> Unit) {
             .background(if (on) C.Text else Color.Transparent).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(text, style = T.mono(14, color = if (on) C.Bg else C.Muted)) }
+}
+
+/** Resgate: quanto fica na reserva/investimento e para onde vai o dinheiro. */
+private fun withdrawalText(
+    cents: Long,
+    category: app.financas.data.Category?,
+    d: AppData,
+    others: List<Entry>,
+    today: LocalDate,
+): Pair<String, Color> {
+    if (category == null) return "escolha de onde saiu" to C.Muted
+    if (cents <= 0) return "" to C.Muted
+    val have = app.financas.domain.groupBalance(category.groupKey, d.settings, d.categories, others, today.toEpochDay())
+    val left = have - cents
+    val where = if (category.groupKey == Keys.RESERVA) "na reserva" else "investido"
+    return if (left < 0) {
+        "mais do que há $where (${Money.brl(have)})" to C.Alerta
+    } else {
+        "fica ${Money.brl(left)} $where · vai para custos" to C.group(category.groupKey)
+    }
 }
 
 private fun impactText(

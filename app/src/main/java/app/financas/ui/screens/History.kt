@@ -37,6 +37,7 @@ import app.financas.domain.Dates
 import app.financas.domain.Money
 import app.financas.domain.entriesIn
 import app.financas.domain.goesToInvest
+import app.financas.domain.isWithdrawal
 import app.financas.ui.AppData
 import app.financas.ui.AppViewModel
 import app.financas.ui.Routes
@@ -60,14 +61,22 @@ fun ColumnScope.HistoryScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
     var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(Filter.TODOS) }
 
-    val groupOf = { e: Entry -> if (e.kind == Keys.RECEITA) null else d.category(e.categoryId)?.groupKey ?: Keys.CUSTOS }
+    val groupOf = { e: Entry ->
+        when {
+            isWithdrawal(e) -> d.category(e.categoryId)?.groupKey
+            e.kind == Keys.RECEITA -> null
+            else -> d.category(e.categoryId)?.groupKey ?: Keys.CUSTOS
+        }
+    }
+    // Guardado e investido são líquidos: aportes menos resgates.
+    val net = { e: Entry -> if (isWithdrawal(e)) -e.amountCents else e.amountCents }
     val monthEntries = remember(d, month) { entriesIn(d.entries, month) }
     val totals = remember(monthEntries) {
         listOf(
-            monthEntries.filter { it.kind == Keys.RECEITA }.sumOf { it.amountCents },
+            monthEntries.filter { it.kind == Keys.RECEITA && !isWithdrawal(it) }.sumOf { it.amountCents },
             monthEntries.filter { groupOf(it) == Keys.CUSTOS }.sumOf { it.amountCents },
-            monthEntries.filter { groupOf(it) == Keys.RESERVA }.sumOf { it.amountCents },
-            monthEntries.filter { groupOf(it) == Keys.INVEST }.sumOf { it.amountCents },
+            monthEntries.filter { groupOf(it) == Keys.RESERVA }.sumOf(net),
+            monthEntries.filter { groupOf(it) == Keys.INVEST }.sumOf(net),
         )
     }
     val q = query.trim().lowercase()
@@ -78,7 +87,7 @@ fun ColumnScope.HistoryScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
                 when (filter) {
                     Filter.TODOS -> true
                     Filter.GASTOS -> groupOf(it) == Keys.CUSTOS
-                    Filter.ENTRADAS -> it.kind == Keys.RECEITA
+                    Filter.ENTRADAS -> it.kind == Keys.RECEITA && !isWithdrawal(it)
                     Filter.GUARDADO -> groupOf(it) == Keys.RESERVA
                     Filter.INVESTIDO -> groupOf(it) == Keys.INVEST
                 }
@@ -170,10 +179,12 @@ private fun Total(name: String, dot: Color, cents: Long, modifier: Modifier) {
 private fun EntryRow(e: Entry, d: AppData, onClick: () -> Unit) {
     val cat = d.category(e.categoryId)
     val receita = e.kind == Keys.RECEITA
+    val resgate = isWithdrawal(e)
     val group = if (receita) null else cat?.groupKey ?: Keys.CUSTOS
     val s = d.settings
     val text = e.description.ifBlank {
         when {
+            resgate -> "Resgate"
             receita && e.source == Keys.SALARIO -> "Salário"
             receita && e.source == Keys.VARIAVEL -> s.variableName
             receita -> "Receita"
@@ -181,6 +192,7 @@ private fun EntryRow(e: Entry, d: AppData, onClick: () -> Unit) {
         }
     }
     val where = when {
+        resgate -> "${cat?.name ?: "Resgate"} · resgate para custos"
         receita && goesToInvest(e, s) -> "${s.variableName} · para investimento"
         receita && e.source == Keys.SALARIO -> "Dividido ${s.pctCustos} · ${s.pctReserva} · ${s.pctInvest}"
         receita -> (if (e.source == Keys.VARIAVEL) s.variableName else "Outra") + " · dividido pelo orçamento"
@@ -190,7 +202,11 @@ private fun EntryRow(e: Entry, d: AppData, onClick: () -> Unit) {
             if (e.installmentCount > 1) "${e.installmentNo}/${e.installmentCount}" else null,
         ).joinToString(" · ")
     }
-    val dot = when { receita -> C.Invest; else -> C.group(group!!) }
+    val dot = when {
+        resgate -> C.group(cat?.groupKey ?: Keys.RESERVA)
+        receita -> C.Invest
+        else -> C.group(group!!)
+    }
     Column(Modifier.padding(horizontal = 8.dp)) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 60.dp).clickable(onClick = onClick),
@@ -204,7 +220,7 @@ private fun EntryRow(e: Entry, d: AppData, onClick: () -> Unit) {
             }
             Text(
                 (if (receita) "+" else "−") + Money.brl(e.amountCents),
-                style = T.mono(15, color = if (receita) C.Invest else C.Text),
+                style = T.mono(15, color = if (receita && !resgate) C.Invest else C.Text),
                 maxLines = 1, softWrap = false,
             )
         }

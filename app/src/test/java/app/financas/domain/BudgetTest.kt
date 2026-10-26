@@ -159,4 +159,24 @@ class BudgetTest {
         assertNull(pendingClose(settings.copy(lastSummaryMonth = 202609), e, today))
         assertNull(pendingClose(settings, emptyList(), today))
     }
+
+    @Test fun withdrawal() {
+        val entries = listOf(
+            Entry(1, day(10, 9), "Reserva", 300000, Keys.GASTO, categoryId = 4),
+            Entry(2, day(20), "Conserto do carro", 80000, Keys.RECEITA, categoryId = 4, source = Keys.RESGATE),
+            Entry(3, day(21), "Oficina", 80000, Keys.GASTO, categoryId = 2),
+        )
+        val s = summarizeMonth(oct, today, settings, cats, entries, emptyList())
+        // o resgate entra no orçamento de custos e compensa o gasto
+        assertEquals(375000L + 80000, s.custos.budgetCents)
+        assertEquals(375000L, s.freeCents)
+        assertEquals(0L, s.incomeCents) // não é dinheiro novo
+        assertEquals(80000L, s.reserva.withdrawnCents)
+        assertEquals(-80000L, s.reserva.netContributionCents)
+        // a meta perde o que saiu
+        assertEquals(220000L, groupBalance(Keys.RESERVA, settings, cats, entries, today.toEpochDay()))
+        // resgate não confirma salário nem entra na divisão
+        assertTrue(s.baseIsPlanned)
+        assertEquals(500000L, s.baseCents)
+    }
 }

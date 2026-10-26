@@ -34,7 +34,8 @@ A chave vem do secret `KEYSTORE_BASE64` (o `.jks` em base64) e a senha, do secre
 - O salário é dividido entre os grupos. A renda variável vai 100% para investir (configurável).
 - **Livre para gastar** = orçamento de custos − gasto em custos − contas fixas de custos ainda não pagas.
 - Enquanto o salário do mês não é confirmado, a divisão usa o salário previsto.
-- Metas são marcos do patrimônio do grupo: "já tenho" + tudo que foi guardado ou investido até hoje.
+- Metas são marcos do patrimônio do grupo: "já tenho" + tudo que foi guardado ou investido até hoje, menos os resgates.
+- **Resgate** (receita → Resgate → "saiu de"): tira o valor da reserva ou do investimento e soma ao orçamento de custos do mês. Não conta como entrada nova nem entra na divisão do salário.
 - A previsão usa juros compostos mensais. O aporte mensal é o definido na meta; senão, a média dos meses fechados (até 3); senão, a parte do salário.
 
 ## Banco de dados

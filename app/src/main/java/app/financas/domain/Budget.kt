@@ -93,12 +93,16 @@ data class GroupStatus(
     /** Quanto cabe ao grupo no mês: parte do salário mais renda direta. */
     val budgetCents: Long,
     val fromSplitCents: Long,
-    /** Renda variável que vai direto para investir. */
+    /** Renda direta: variável para investir; resgates para custos. */
     val directCents: Long,
+    /** Resgatado deste grupo no mês (sai da reserva/investimento). */
+    val withdrawnCents: Long = 0,
     val spentCents: Long,
     val areas: List<AreaStatus>,
 ) {
     val remainingCents: Long get() = budgetCents - spentCents
+    /** Aportes do mês menos resgates. */
+    val netContributionCents: Long get() = spentCents - withdrawnCents
     val plannedInAreasCents: Long get() = areas.filter { !it.category.archived }.sumOf { it.category.plannedCents }
     val unassignedCents: Long get() = budgetCents - plannedInAreasCents
 }
@@ -113,7 +117,10 @@ data class MonthSummary(
     /** Salário ainda não confirmado: a divisão usa o salário previsto. */
     val baseIsPlanned: Boolean,
     val salaryConfirmed: Boolean,
+    /** Entradas de dinheiro novo; resgates ficam de fora (são dinheiro que já era seu). */
     val incomeCents: Long,
+    /** Resgates do mês, somados ao orçamento de custos. */
+    val withdrawalCents: Long,
     val groups: Map<String, GroupStatus>,
     val bills: List<BillStatus>,
     /** Contas fixas de custos ainda não pagas no mês. */
@@ -142,6 +149,8 @@ fun entriesIn(entries: List<Entry>, month: YearMonth): List<Entry> {
 fun goesToInvest(entry: Entry, settings: Settings): Boolean =
     entry.kind == Keys.RECEITA && entry.source == Keys.VARIAVEL && settings.variableToInvest
 
+fun isWithdrawal(entry: Entry): Boolean = entry.kind == Keys.RECEITA && entry.source == Keys.RESGATE
+
 fun summarizeMonth(
     month: YearMonth,
     today: LocalDate,
@@ -151,7 +160,8 @@ fun summarizeMonth(
     bills: List<FixedBill>,
 ): MonthSummary {
     val entries = entriesIn(allEntries, month)
-    val receitas = entries.filter { it.kind == Keys.RECEITA }
+    val withdrawals = entries.filter { isWithdrawal(it) }
+    val receitas = entries.filter { it.kind == Keys.RECEITA && !isWithdrawal(it) }
     val gastos = entries.filter { it.kind == Keys.GASTO }
 
     val salaryConfirmed = receitas.any { it.source == Keys.SALARIO }
@@ -174,7 +184,13 @@ fun summarizeMonth(
         val orphan = if (key == Keys.CUSTOS) {
             gastos.filter { it.categoryId == null || byId[it.categoryId] == null }.sumOf { it.amountCents }
         } else 0L
-        val directHere = if (key == Keys.INVEST) direct else 0L
+        // O resgate vira dinheiro para gastar no mês.
+        val directHere = when (key) {
+            Keys.INVEST -> direct
+            Keys.CUSTOS -> withdrawals.sumOf { it.amountCents }
+            else -> 0L
+        }
+        val ids = areas.map { it.category.id }.toSet()
         key to GroupStatus(
             key = key,
             budgetCents = shares[i] + directHere,
@@ -182,6 +198,7 @@ fun summarizeMonth(
             directCents = directHere,
             spentCents = areas.sumOf { it.spentCents } + orphan,
             areas = areas,
+            withdrawnCents = withdrawals.filter { it.categoryId in ids }.sumOf { it.amountCents },
         )
     }.toMap()
 
@@ -206,6 +223,7 @@ fun summarizeMonth(
         baseIsPlanned = baseIsPlanned,
         salaryConfirmed = salaryConfirmed,
         incomeCents = receitas.sumOf { it.amountCents },
+        withdrawalCents = withdrawals.sumOf { it.amountCents },
         groups = groups,
         bills = billStatus,
         pendingFixedCents = pending,
@@ -285,7 +303,7 @@ data class GoalStatus(
     val missingCents: Long get() = max(0, goal.targetCents - currentCents)
 }
 
-/** Patrimônio do grupo: o "já tenho" mais tudo que foi guardado/investido até [upTo]. */
+/** Patrimônio do grupo: o "já tenho" mais o guardado/investido até [upTo], menos os resgates. */
 fun groupBalance(
     group: String,
     settings: Settings,
@@ -294,9 +312,10 @@ fun groupBalance(
     upTo: Long,
 ): Long {
     val ids = categories.filter { it.groupKey == group }.map { it.id }.toSet()
-    return settings.initialOf(group) + entries
-        .filter { it.kind == Keys.GASTO && it.categoryId in ids && it.epochDay <= upTo }
-        .sumOf { it.amountCents }
+    val upToNow = entries.filter { it.categoryId in ids && it.epochDay <= upTo }
+    return settings.initialOf(group) +
+        upToNow.filter { it.kind == Keys.GASTO }.sumOf { it.amountCents } -
+        upToNow.filter { isWithdrawal(it) }.sumOf { it.amountCents }
 }
 
 /**

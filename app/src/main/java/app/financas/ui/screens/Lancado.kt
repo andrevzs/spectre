@@ -66,9 +66,11 @@ fun ColumnScope.LancadoScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
     val after = remember(d, month, today) { summarizeMonth(month, today, d.settings, d.categories, d.entries, d.bills) }
     val before = remember(without, month, today) { summarizeMonth(month, today, d.settings, d.categories, without, d.bills) }
     val category = d.category(entry.categoryId)
+    val withdrawal = entry.kind == Keys.RECEITA && entry.source == Keys.RESGATE
     val group = if (entry.kind == Keys.RECEITA) null else category?.groupKey ?: Keys.CUSTOS
 
     val title = when {
+        withdrawal -> "Resgate lançado"
         entry.kind == Keys.RECEITA -> "Receita lançada"
         group == Keys.RESERVA -> "Guardado"
         group == Keys.INVEST -> "Investido"
@@ -84,6 +86,7 @@ fun ColumnScope.LancadoScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
         Keys.SALARIO -> "Salário"
         Keys.VARIAVEL -> d.settings.variableName
         Keys.OUTRA -> "Outra"
+        Keys.RESGATE -> category?.name ?: "Resgate"
         else -> category?.name ?: "—"
     }
 
@@ -185,6 +188,7 @@ fun ColumnScope.LancadoScreen(vm: AppViewModel, d: AppData, nav: NavHostControll
                     }
                     else -> {
                         FreeChange(before.freeCents, after.freeCents, after.perDayCents)
+                        if (withdrawal && category != null) GoalChange(d, without, category.groupKey, today)
                         if (after.invest.directCents > 0 && entry.source == Keys.VARIAVEL) {
                             Row(Modifier.fillMaxWidth()) {
                                 Text("Para investir no mês", style = T.sans(15), modifier = Modifier.weight(1f))
@@ -231,7 +235,11 @@ private fun GoalChange(d: AppData, without: List<app.financas.data.Entry>, group
             Text(goal.goal.name, style = T.sans(15), modifier = Modifier.weight(1f))
             Text("${prev.percent}% → ${goal.percent}%", style = T.mono(13, color = C.group(group)))
         }
-        SegBar(List(40) { i -> if (i < a) C.groupDim(group) else if (i < b) C.group(group) else C.Empty })
+        // Aporte: segmentos novos na cor cheia. Resgate: os que saíram ficam apagados.
+        SegBar(
+            if (b >= a) List(40) { i -> if (i < a) C.groupDim(group) else if (i < b) C.group(group) else C.Empty }
+            else List(40) { i -> if (i < b) C.group(group) else if (i < a) C.groupDim(group) else C.Empty },
+        )
         goal.reachMonth?.let { Text("previsão ${Dates.monthShort(it)}", style = T.mono(13, color = C.Muted)) }
     }
 }
