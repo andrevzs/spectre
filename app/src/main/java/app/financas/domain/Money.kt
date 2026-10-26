@@ -4,6 +4,9 @@ import kotlin.math.abs
 
 /** Formatação brasileira sem depender do Locale do aparelho. */
 object Money {
+    /** Maior valor aceito: R$ 999.999.999,99. Evita overflow em somas e formatação. */
+    const val MAX_CENTS = 99_999_999_999L
+
     private fun group(n: Long): String {
         val s = n.toString()
         val sb = StringBuilder()
@@ -59,9 +62,11 @@ object Money {
         }
         if (!Regex("^\\d+(\\.\\d{1,2})?$").matches(s)) return null
         val parts = s.split('.')
-        val whole = parts[0].toLongOrNull() ?: return null
+        val digits = parts[0].trimStart('0')
+        if (digits.length > 9) return null
+        val whole = digits.ifEmpty { "0" }.toLong()
         val frac = if (parts.size > 1) parts[1].padEnd(2, '0').toLong() else 0L
-        return whole * 100 + frac
+        return (whole * 100 + frac).takeIf { it <= MAX_CENTS }
     }
 
     /** Teclado do app: dígitos digitados formam centavos ("31290" -> 312,90). */

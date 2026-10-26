@@ -42,6 +42,10 @@ class BudgetTest {
         assertEquals(0L, Money.parse("0"))
         assertNull(Money.parse("abc"))
         assertNull(Money.parse(""))
+        assertEquals(Money.MAX_CENTS, Money.parse("999.999.999,99"))
+        assertNull(Money.parse("1.000.000.000,00")) // acima do limite
+        assertNull(Money.parse("99999999999999999999")) // não estoura o Long
+        assertEquals(1234L, Money.parse("0012,34"))
         assertEquals("10%", Money.percent(1000))
         assertEquals("10,5%", Money.percent(1050))
     }

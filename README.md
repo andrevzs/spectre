@@ -22,7 +22,7 @@ Ele também pode ser disparado manualmente em **Actions → APK → Run workflow
 
 ### Chave de assinatura
 
-A chave vem do secret `KEYSTORE_BASE64` (o `.jks` em base64) e a senha, do secret `KEYSTORE_PASSWORD`. Se o secret não existir, o workflow usa `keystore/spectre.jks`, caso esse arquivo esteja no repositório.
+A chave vem do secret `KEYSTORE_BASE64` (o `.jks` em base64) e a senha, do secret `KEYSTORE_PASSWORD`. Sem os dois, o workflow para com erro. A chave nunca fica no repositório (`keystore/*.jks` está no `.gitignore`), e não existe senha padrão. Builds de debug usam a chave de debug do próprio Android.
 
 **Não troque a chave depois de instalar.** Um APK com outra assinatura não instala por cima: seria preciso desinstalar, o que apaga os dados. Salve uma cópia antes.
 
@@ -34,6 +34,12 @@ A chave vem do secret `KEYSTORE_BASE64` (o `.jks` em base64) e a senha, do secre
 - Enquanto o salário do mês não é confirmado, a divisão usa o salário previsto.
 - Metas são marcos do patrimônio do grupo: "já tenho" + tudo que foi guardado ou investido até hoje.
 - A previsão usa juros compostos mensais. O aporte mensal é o definido na meta; senão, a média dos meses fechados (até 3); senão, a parte do salário.
+
+## Banco de dados
+
+O Room exporta o schema de cada versão em `app/schemas` (o workflow publica como artefato `room-schemas`). Ao mudar uma entidade, aumente a versão do banco e escreva uma `Migration`; o app não apaga dados em migração.
+
+O arquivo de cópia tem um campo `version`. A restauração recusa cópias de versões mais novas do app e só substitui os dados depois de ler o arquivo inteiro sem erro.
 
 ## Estrutura
 

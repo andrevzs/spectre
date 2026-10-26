@@ -21,15 +21,17 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # A chave de assinatura vem do secret KEYSTORE_BASE64 quando ele existe;
-      # sem o secret, usa keystore/spectre.jks do repositório.
+      # A chave de assinatura vem só dos secrets; nunca fica no repositório.
       - name: Chave de assinatura
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Crie os secrets KEYSTORE_BASE64 e KEYSTORE_PASSWORD (ver README)"; exit 1
+          fi
           mkdir -p keystore
-          if [ -n "$KEYSTORE_BASE64" ]; then echo "$KEYSTORE_BASE64" | base64 -d > keystore/spectre.jks; fi
-          test -f keystore/spectre.jks || { echo "::error::Falta a chave: crie o secret KEYSTORE_BASE64"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 -d > keystore/spectre.jks
 
       - name: Testes e APK
         env:
@@ -44,6 +46,11 @@ jobs:
         with:
           name: financas-apk
           path: financas-*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: room-schemas
+          path: app/schemas
 
       # Publica em Releases: dá para baixar direto no celular, sem login.
       - uses: softprops/action-gh-release@v2

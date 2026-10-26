@@ -94,6 +94,8 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
     val isGasto = kind == Keys.GASTO
     val category = d.category(categoryId)
     val ready = cents > 0 && (if (isGasto) category != null else true)
+    // Pagamento de conta fixa: a área é a da conta (muda-se em Fixos), para o orçamento não divergir.
+    val areaLocked = (editing?.fixedBillId != null || bill != null) && category != null
 
     BackHandler(sheet) { sheet = false }
 
@@ -170,9 +172,14 @@ fun ColumnScope.LancarScreen(vm: AppViewModel, d: AppData, nav: NavHostControlle
 
                 // Área ou origem
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionLabel(if (isGasto) "Área" else "Origem", Modifier.padding(start = 4.dp))
+                    SectionLabel(
+                        if (!isGasto) "Origem" else if (areaLocked) "Área · da conta fixa, muda em Fixos" else "Área",
+                        Modifier.padding(start = 4.dp),
+                    )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (isGasto) {
+                        if (isGasto && areaLocked) {
+                            Chip(category!!.name, true, {}, dot = C.group(category.groupKey))
+                        } else if (isGasto) {
                             val ordered = remember(d, today) { areasByUsage(d.categories, d.entries, today) }
                             val visible = if (showAll) ordered else ordered.take(6).let { top ->
                                 if (category != null && top.none { it.id == category.id }) top + category else top

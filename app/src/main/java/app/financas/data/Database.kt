@@ -105,7 +105,7 @@ interface FinDao {
 @Database(
     entities = [Settings::class, Category::class, Entry::class, FixedBill::class, Goal::class],
     version = 1,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun dao(): FinDao

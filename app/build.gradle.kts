@@ -17,14 +17,19 @@ android {
         versionName = "1.0." + (System.getenv("VERSION_CODE") ?: "0")
     }
 
-    // A chave vem dos secrets do GitHub (ver README). Todos os APKs saem com a
-    // mesma assinatura, então uma versão nova instala por cima sem apagar os dados.
+    // A chave de release vem só dos secrets do GitHub (ver README); não há senha padrão.
+    // Todos os APKs de release saem com a mesma assinatura, então uma versão nova
+    // instala por cima sem apagar os dados. Sem os secrets, o release sai sem assinatura.
+    val keystorePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotEmpty() }
+    val keystoreFile = rootProject.file("keystore/spectre.jks")
     signingConfigs {
-        create("spectre") {
-            storeFile = rootProject.file("keystore/spectre.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotEmpty() } ?: "spectre-local"
-            keyAlias = "spectre"
-            keyPassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotEmpty() } ?: "spectre-local"
+        if (keystorePassword != null && keystoreFile.exists()) {
+            create("release") {
+                storeFile = keystoreFile
+                storePassword = keystorePassword
+                keyAlias = "spectre"
+                keyPassword = keystorePassword
+            }
         }
     }
 
@@ -33,10 +38,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("spectre")
-        }
-        debug {
-            signingConfig = signingConfigs.getByName("spectre")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
@@ -53,6 +55,11 @@ android {
     lint {
         checkReleaseBuilds = false
     }
+}
+
+ksp {
+    // Schemas do Room versionados, para escrever migrações quando as tabelas mudarem.
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {

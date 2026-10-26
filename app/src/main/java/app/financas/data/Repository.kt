@@ -37,6 +37,9 @@ data class SetupInput(
     val reserveHaveCents: Long,
 )
 
+/** Formato do arquivo de cópia. Aumente ao mudar campos, e trate as versões antigas em importJson. */
+const val BACKUP_VERSION = 1
+
 class Repository(private val db: AppDatabase) {
     private val dao = db.dao()
 
@@ -248,7 +251,7 @@ class Repository(private val db: AppDatabase) {
     suspend fun exportJson(): String {
         val root = JSONObject()
         root.put("app", "financas")
-        root.put("version", 1)
+        root.put("version", BACKUP_VERSION)
         root.put("exportedAt", System.currentTimeMillis())
         root.put("settings", Backup.settings(settingsNow()))
         root.put("categories", JSONArray(dao.categoriesNow().map(Backup::category)))
@@ -262,6 +265,11 @@ class Repository(private val db: AppDatabase) {
     suspend fun importJson(text: String) {
         val root = JSONObject(text)
         require(root.optString("app") == "financas") { "Este arquivo não é uma cópia do app." }
+        val version = root.optInt("version", 0)
+        require(version in 1..BACKUP_VERSION) {
+            if (version > BACKUP_VERSION) "Cópia feita por uma versão mais nova do app. Atualize o app antes de restaurar."
+            else "Cópia em formato desconhecido."
+        }
         val settings = Backup.settings(root.getJSONObject("settings"))
         val cats = root.getJSONArray("categories").objects().map(Backup::category)
         val entries = root.getJSONArray("entries").objects().map(Backup::entry)
