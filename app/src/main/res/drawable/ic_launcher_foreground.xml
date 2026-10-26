@@ -1,0 +1,8 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- A faixa do mês: 75 / 10 / 15 -->
+    <path android:fillColor="#F2F2EE" android:pathData="M30,49h29v10h-29z"/>
+    <path android:fillColor="#F5B83D" android:pathData="M61,49h5v10h-5z"/>
+    <path android:fillColor="#34D399" android:pathData="M68,49h10v10h-10z"/>
+</vector>
